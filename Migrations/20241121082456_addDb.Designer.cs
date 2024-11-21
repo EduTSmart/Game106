@@ -12,7 +12,7 @@ using ServerGame106.Data;
 namespace ServerGame106.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241116061445_addDb")]
+    [Migration("20241121082456_addDb")]
     partial class addDb
     {
         /// <inheritdoc />
@@ -180,6 +180,9 @@ namespace ServerGame106.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
@@ -197,6 +200,10 @@ namespace ServerGame106.Migrations
                     b.Property<string>("NormalizedUserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("OTP")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
@@ -268,6 +275,32 @@ namespace ServerGame106.Migrations
                             LevelId = 3,
                             title = "Cấp độ 3"
                         });
+                });
+
+            modelBuilder.Entity("ServerGame106.Models.LevelResult", b =>
+                {
+                    b.Property<int>("QuizzResultId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("QuizzResultId"));
+
+                    b.Property<DateOnly>("CompletionDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LevelId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("QuizzResultId");
+
+                    b.ToTable("LevelResults");
                 });
 
             modelBuilder.Entity("ServerGame106.Models.Question", b =>
