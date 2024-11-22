@@ -11,6 +11,11 @@ using Azure;
 using ServerGame106.Migrations;
 using static System.Net.WebRequestMethods;
 using ServerGame106.Service;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ServerGame106.Models
 {
@@ -24,16 +29,19 @@ namespace ServerGame106.Models
         private readonly IEmailService _emailService;
         protected ResponseApi _response;
         private readonly UserManager<ApplicationUser> _userManager;
-
+        private readonly IConfiguration _configuration;
         public APIGameController(
             ApplicationDbContext db,
-            UserManager<ApplicationUser> userManager, IEmailService emailService
+            UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
+            IConfiguration configuration
              )
         {
             _db = db;
             _response = new();
             _userManager = userManager;
             _emailService = emailService;
+            _configuration = configuration;
 
         }
         [HttpGet("GetAllGameLevel")]
@@ -142,9 +150,16 @@ namespace ServerGame106.Models
 
                 if (user != null && await _userManager.CheckPasswordAsync(user, password))
                 {
+                    var token = GenerateJwtToken(user);
+                    var data = new
+                    {
+                        token = token,
+                        user = user
+                    };
+
                     _response.IsSuccess = true;
                     _response.Notification = "Dang nhap thanh cong";
-                    _response.Data = user;
+                    _response.Data = data;
                     return Ok(_response);
                 }
                 else
@@ -544,6 +559,49 @@ namespace ServerGame106.Models
                     _response.Data = null;
                     return BadRequest(_response);
                 }
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.Notification = "Lỗi";
+                _response.Data = ex.Message;
+                return BadRequest(_response);
+            }
+        }
+
+
+        private string GenerateJwtToken(ApplicationUser user)
+        {
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.NameIdentifier, user.Id)
+            };
+            var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.Now.AddMinutes(30),
+            signingCredentials: credentials
+            );
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+
+        [HttpGet("GetAllResultByUser/{userId}")]
+        [Authorize]
+        public async Task<IActionResult> GetAllResultByUser(string userId)
+        {
+            try
+            {
+                var result = await _db.LevelResults.Where(x => x.UserId == userId).ToListAsync();
+                _response.IsSuccess = true;
+                _response.Notification = "Lấy dữ liệu thành công";
+                _response.Data = result;
+                return Ok(_response);
             }
             catch (Exception ex)
             {
